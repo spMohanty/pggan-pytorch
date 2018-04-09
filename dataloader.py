@@ -34,7 +34,7 @@ class dataloader:
         #                                             transforms.Scale(size=(self.imsize,self.imsize), interpolation=Image.NEAREST),
         #                                             transforms.ToTensor(),
         #                                             ]))
-        self.dataset = Vim2Dataset(  "data/vim-2",
+        self.dataset = Vim2Dataset(  self.config.train_data_root,
                                 subject_id=1,
                                 is_val=False,
                                 stimuli_transform = transforms.Compose(
