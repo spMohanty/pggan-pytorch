@@ -13,7 +13,7 @@ class Vim2Dataset(Dataset):
     def __init__(self, root_dir, is_val=False, subject_id=1,
                 ignore_voxel_reponse = False,
                 voxel_response_transform=None, stimuli_transform=None,
-                add_noise=False, resize_stimuli=False,
+                add_noise=False, pre_resize_stimuli=False,
                 debug=False, verbose=False):
         """
             Initialised the Vim2Dataset
@@ -36,7 +36,7 @@ class Vim2Dataset(Dataset):
         self.voxel_response_transform = voxel_response_transform
         self.stimuli_transform = stimuli_transform
         self.add_noise = add_noise
-        self.resize_stimuli = resize_stimuli
+        self.pre_resize_stimuli = pre_resize_stimuli
         self.debug = debug
         self.verbose = verbose
 
@@ -58,7 +58,18 @@ class Vim2Dataset(Dataset):
 
         if self.verbose:
             print("Loading Stimuli from : ", self.stimuli_path)
+
         self.stimuli = np.load(self.stimuli_path).astype(np.uint8)
+        if self.pre_resize_stimuli:
+            resized_stimuli_shape = [self.stimuli.shape[0]] + list(self.pre_resize_stimuli) + [self.stimuli.shape[-1]]
+            self.resized_stimuli = np.zeros( resized_stimuli_shape ) # N, H, W, C
+            for _idx in tqdm.tqdm(range(self.stimuli.shape[0])):
+                im = Image.fromarray(np.uint8(self.stimuli[_idx]))
+                im = im.resize(self.pre_resize_stimuli, resample=Image.NEAREST)
+                self.resized_stimuli[_idx] = np.array(im).astype(np.uint8)
+            del self.stimuli
+            self.stimuli = self.resized_stimuli
+
 
     def load_voxel_response(self):
         if self.is_val:
@@ -85,16 +96,9 @@ class Vim2Dataset(Dataset):
             return len(self.stimuli)
 
     def __getitem__(self, idx):
-        if self.debug:
-            random_stimuli = torch.rand(3, 64, 64)
-            random_vortex_response = torch.rand(1, 18, 64, 64)
-            return random_stimuli, random_vortex_response
-
         # Obtain and prepare stimuli
         stimuli = self.stimuli[idx] # C x H x W
-        print(stimuli.shape)
-        stimuli = Image.fromarray(stimuli.astype('uint8'), mode='RGB')
-        print(stimuli.size)
+        stimuli = Image.fromarray(stimuli.astype('uint8'))
 
         if self.stimuli_transform:
             stimuli = self.stimuli_transform(stimuli)
@@ -161,7 +165,7 @@ if __name__ == "__main__":
                             stimuli_transform = stimuli_transforms,
                             voxel_response_transform=voxel_response_transforms,
                             ignore_voxel_reponse = True,
-                            resize_stimuli=(64, 64),
+                            pre_resize_stimuli=(64, 64),
                             debug=False,
                             verbose=True)
 
@@ -178,13 +182,13 @@ if __name__ == "__main__":
     _idx = 0
     for stimuli, voxel_response in data_loader:
         print(_idx, voxel_response.shape, stimuli.shape)
-        # std_coeff = torch.Tensor(stimuli.shape).fill_(0.5)
-        # mean_coeff = torch.Tensor(stimuli.shape).fill_(0.5)
-        # unint8_coeff = torch.Tensor(stimuli.shape).fill_(255.0)
-        # #
-        # real_images = torch.mul(stimuli, std_coeff)
-        # real_images = torch.add(real_images, mean_coeff)
-        # real_images = torch.mul(real_images, unint8_coeff)
+        std_coeff = torch.Tensor(stimuli.shape).fill_(0.5)
+        mean_coeff = torch.Tensor(stimuli.shape).fill_(0.5)
+        unint8_coeff = torch.Tensor(stimuli.shape).fill_(255.0)
+        #
+        real_images = torch.mul(stimuli, std_coeff)
+        real_images = torch.add(real_images, mean_coeff)
+        real_images = torch.mul(real_images, unint8_coeff)
         #
         real_images = stimuli[0:3]
         images = vutils.make_grid(torch.FloatTensor(real_images), normalize=True, scale_each=False)

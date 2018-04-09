@@ -39,12 +39,13 @@ class dataloader:
                                 is_val=False,
                                 stimuli_transform = transforms.Compose(
                                     [
-                                        transforms.Scale(size=(self.imsize,self.imsize), interpolation=Image.NEAREST),
+                                        # transforms.Scale(size=(self.imsize,self.imsize), interpolation=Image.NEAREST),
                                         transforms.ToTensor()
                                     ]
                                 ),
                                 voxel_response_transform=None,
                                 # add_noise=[-0.002, 0.002],
+                                pre_resize_stimuli=(self.imsize,self.imsize),
                                 add_noise=False,
                                 debug=False,
                                 verbose=False)
